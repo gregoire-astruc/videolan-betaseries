@@ -219,17 +219,23 @@ function activate()
     markers = set.new()
     vlc.msg.dbg(tag .. "starting up.")
     configfilename = vlc.misc.configdir() .. "/.betaseries"
+    
     --[[ First, we look for an existing configfile.
             If it exists, we attempt to load it.
             Otherwise we immediately prompt the account dialog.
     --]]
-    for line in io.lines(configfilename) do
-        -- Could probably do nicer, but I don't know lua :(
-        if not user then
-            user = line
-        else
-            pass = line
+    configfile = io.open(configfilename)
+    if configfile then
+        for line in configfile:lines() do
+            -- Could probably do nicer, but I don't know lua :(
+            if not user then
+                user = line
+            else
+                pass = line
+            end
         end
+        
+        configfile:close()
     end
     
     local msg = nil
