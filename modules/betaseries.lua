@@ -69,6 +69,7 @@ local function trim(s)
 end
 
 function shows.search(title)
+    vlc.msg.warn(tag.."Searching '"..title.."'")
     local page, errmsg = load(api.shows.search .."title="..title)
     if not page then return nil, errmsg end
     
@@ -77,6 +78,8 @@ function shows.search(title)
     for showUrl, showTitle in page:gmatch("<url>(.-)</url>.-<title>(.-)</title>") do
         table.insert(showsTable, {shows, url = showUrl, title = trim(showTitle)})
     end
+    
+    vlc.msg.warn(tag..#showsTable.." results for '"..title.."'")
 
     if  #showsTable == 0 then
         vlc.msg.warn(page)

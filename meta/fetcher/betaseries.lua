@@ -33,7 +33,18 @@ function fetch_meta()
     local episode = metas["episodeNumber"]
     local season = metas["seasonNumber"]
     
-    if not show or not episode or not season then
+    if not show then
+        vlc.msg.warn(tag.."No showName, aborting.")
+        return false
+    end
+    
+    if not episode then
+        vlc.msg.warn(tag.."No episodeNumber, aborting.")
+        return false
+    end
+    
+    if not season then
+        vlc.msg.warn(tag.."No seasonNumber, aborting.")
         return false
     end
     
@@ -50,7 +61,6 @@ function fetch_meta()
     local showTitle = nil
     
     for _, showInfo in ipairs(shows) do
-        vlc.msg.warn(tag..show.." against "..showInfo.title)
         if string.lower(show) == string.lower(showInfo.title) then
             showUrl     = showInfo.url
             showTitle   = showInfo.title
@@ -63,6 +73,7 @@ function fetch_meta()
         return false
     end
 
+    vlc.msg.warn(tag.."Adding meta data.")
     vlc.item:set_meta("betaseries/url", showUrl)
     vlc.item:set_meta("betaseries/title", showTitle)
     vlc.item:set_meta("betaseries/episode", episode)
