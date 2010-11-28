@@ -20,6 +20,8 @@
 --]]
 module("betaseries",package.seeall)
 
+require "modules.simplexml"
+
 -- Interface
 shows = {}
 members = {}
@@ -34,12 +36,15 @@ local api = {
             base    = "http://api.betaseries.com/",
             -- Sections
             shows = {
-                search = "shows/search"..api_key
+                search      = "shows/search"..api_key,
+                display     = "shows/display/",
+                episodes    = "shows/episodes/"
             },
             members = {
-                auth = "members/auth"..api_key,
+                auth    = "members/auth"..api_key,
                 destroy = "members/destroy"..api_key,
-                watched = "members/watched/"
+                watched = "members/watched/",
+                signup  = "members/signup"..api_key
             }
         }           
 
@@ -59,34 +64,133 @@ local function sortby_title(showa, showb)
     return showa.title < showb.title
 end
 
+local function trim(s)
+  return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
+end
+
 function shows.search(title)
     local page, errmsg = load(api.shows.search .."title="..title)
     if not page then return nil, errmsg end
     
     local showsTable = {}
     
-    for showUrl, showTitle  in page:gmatch("<url>(.-)</url>.*<title>(.-)</title>") do
-        -- shows[showUrl] = showTitle
-        table.insert(showsTable, {url = showUrl, title = showTitle})
+    for showUrl, showTitle in page:gmatch("<url>(.-)</url>.-<title>(.-)</title>") do
+        table.insert(showsTable, {shows, url = showUrl, title = trim(showTitle)})
     end
 
-    if #showsTable == 0 then
+    if  #showsTable == 0 then
         vlc.msg.warn(page)
-        return nil, "Unable to find poper <url> tag."
+        return nil, "No results for '" .. title .. "'."
     end
-    
-    table.sort(showsTable, sortby_title)
 
     return showsTable
 end
 
 
+
+local function get_tag_value(page, tagname)
+    return page:find('<' .. tagname .. '>(.-)</' .. tagname .. '>')
+end
+
 -- Show information.
-function shows.display(url)
-    return nil
+function shows:display()
+    local page, errmsg = load(api.shows.display .. self.url .. api_key)
+    if not page then return nil, errmsg end
+    
+    showInfo = simplexml.parse_string(page)
+    
+    for _, node in ipairs(showInfo.children) do
+        if node.name == "title" then
+            self.title = trim(node.children[1])
+            
+        elseif node.name == "id_thetvdb" then
+            self.tvdb = trim(node.children[1])
+            
+        elseif node.name == "url" then
+            self.url = trim(node.children[1])
+            
+        elseif node.name == "description" then
+            self.description = trim(node.children[1])
+            
+        elseif node.name == "status" then
+            self.status = trim(node.children[1])
+            
+        elseif node.name == "banner" then
+            self.banner = trim(node.children[1])
+            
+        elseif node.name == "genres" then
+            self.genres = {}
+            for _, genre in ipairs(node.children) do
+                table.insert(self.genres, genre.children[1])
+            end
+        end
+    end
+    
+    if not self.title then
+        return false, "Can't display" .. url
+    end
+    
+    return true
+end
+
+function shows:episodes(season)
+    local url = api.shows.episodes .. self.url .. api_key
+    if tonumber(season) ~= nil then
+        url = url .. "&season=" .. season
+    end
+    
+    local page, errmsg = load(url)
+    if not page then return nil, errmsg end
+    
+    local xml = simplexml.parse_string(page)
+    
+    for _, node in ipairs(xml.children) do
+        if node.name == "season" then
+            local season = {}
+            
+            for _, subnode in ipairs(node.children) do
+                if subnode.name == "number" then
+                    season.number = subnode.children[1]
+                
+                elseif subnode.name == "episodes" then
+                    season.episodes = {}
+                    for _, episodes in ipairs(subnode.children) do
+                        local episode = {}
+                        for _, episodeInfo in ipairs(episodes.children) do
+                            if episodeInfo == "episode" then
+                                episode.episode = episodeInfo.children[1]
+                                
+                            elseif episodeInfo == "number" then
+                                episode.number = episodeInfo.children[1]
+                                
+                            elseif episodeInfo == "date" then
+                                episode.date = episodeInfo.children[1]
+                            
+                            elseif episodeInfo == "title" then
+                                episode.title = episodeInfo.children[1]
+                            
+                            elseif episodeInfo == "description" then
+                                episode.description = episodeInfo.children[1]
+                                
+                            elseif episodeInfo == "screen" then
+                                episode.screen = episodeInfo.children[1]
+                            end
+                        end
+                        
+                        season.episodes[tonumber(episode.episode)] = episode
+                    end
+                end
+            end
+        end
+    end
 end
 
 -- Members section.
+
+function members.signup(login, password, mail)
+    page, errmsg = load(api.members.signup.."login="..login.."&password="..password.."&mail="..mail)
+    if not page then return false, errmsg end
+end
 -- Authentification.
 -- Given a username and password (must be md5), attempts to login
 -- returns:
@@ -94,13 +198,12 @@ end
 -- - nil, error message, error code - on failure.
 function members.auth(username, password)
     -- Build URL
-    -- local url = base .. "members/auth.xml?key=" .. key .. "&login=" .. username .. "&password=" .. password
     local url = api.members.auth .. "login=" .. username .. "&password=" .. password
 
     -- Open/Fetch URL.
     local data, msg = load(url)
     if not data then
-        vlc.msg.warn(tag .. "" .. msg)
+        vlc.msg.warn(tag..msg)
         return nil, msg, -1
     end
     
@@ -118,7 +221,6 @@ function members.auth(username, password)
     end
     
     -- Token generated: username/password combo is correct.
-    
     local self = members
     self.token = token
     return self

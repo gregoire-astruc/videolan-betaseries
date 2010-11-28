@@ -44,13 +44,27 @@ function fetch_meta()
         return false
     end
     
-    if #shows > 1 then
-        vlc.msg.warn(tag .. "Multiple shows.")
+    -- Look for an exact title match.
+    -- If none, we acknownledge we failed.
+    local showUrl   = nil
+    local showTitle = nil
+    
+    for _, showInfo in ipairs(shows) do
+        vlc.msg.warn(tag..show.." against "..showInfo.title)
+        if string.lower(show) == string.lower(showInfo.title) then
+            showUrl     = showInfo.url
+            showTitle   = showInfo.title
+            break
+        end
+    end
+        
+    if not showUrl then
+        vlc.msg.warn(tag.."No information for "..show)
         return false
     end
 
-    vlc.item:set_meta("betaseries/url", shows[1].url)
-    vlc.item:set_meta("betaseries/title", shows[1].title)
+    vlc.item:set_meta("betaseries/url", showUrl)
+    vlc.item:set_meta("betaseries/title", showTitle)
     vlc.item:set_meta("betaseries/episode", episode)
     vlc.item:set_meta("betaseries/season", season)
     return true
