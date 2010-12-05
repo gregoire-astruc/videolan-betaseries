@@ -60,11 +60,18 @@ function fetch_meta()
     local showUrl   = nil
     local showTitle = nil
     
-    for _, showInfo in ipairs(shows) do
-        if string.lower(show) == string.lower(showInfo.title) then
-            showUrl     = showInfo.url
-            showTitle   = showInfo.title
-            break
+    if #shows == 1 then
+        -- Only one show returned : assume it's the correct one.
+        showUrl = shows[1].url
+        showTitle = shows[1].title
+    else
+        -- Multiple show : we look for an exact match.
+        for _, showInfo in ipairs(shows) do
+            if string.lower(show) == string.lower(showInfo.title) then
+                showUrl     = showInfo.url
+                showTitle   = showInfo.title
+                break
+            end
         end
     end
         
