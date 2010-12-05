@@ -37,9 +37,9 @@ Others
 ------
 
 * Download the extension from the `Download link`_ on the project main page.
-* Extract the archive directory content (the one from which you can see modules, meta
-    and extensions directories) inside vlc lua directory. Depending on your configuration,
-    it can be in any directory mentioned in the `VLC lua README`_ §2.
+* Extract the archive directory content (the one from which you can see modules, meta and extensions
+  directories) inside vlc lua directory. Depending on your configuration,
+  it can be in any directory mentioned in the `VLC lua README`_ §2.
 * **Warning**: If your *not* using the system-wide directory, you *must* do the following:
 
   * Create the folder ``lua/meta/modules``
