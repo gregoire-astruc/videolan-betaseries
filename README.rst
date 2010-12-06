@@ -31,7 +31,12 @@ Then, run VLC. If the extension is installed properly, it should appear in the '
 Linux
 -----
 
-Download and run the `Install Script`_ available on the project main page.
+Download and run the `Linux Install Script`_ available on the project main page.
+
+Windows
+-------
+
+Download and run the `Windows Installer`_ available on the project main page.
 
 Others
 ------
@@ -50,5 +55,6 @@ Others
 
 .. _BetaSeries: http://www.betaseries.com/
 .. _`Download link`: https://github.com/gregoire-astruc/videolan-betaseries/downloads
-.. _`Install Script`: https://github.com/downloads/gregoire-astruc/videolan-betaseries/install-videolan-betaseries.sh
+.. _`Linux Install Script`: https://github.com/downloads/gregoire-astruc/videolan-betaseries/install-videolan-betaseries.sh
+.. _`Windows Installer`: https://github.com/downloads/gregoire-astruc/videolan-betaseries/videolan-betaseries-installer.exe
 .. _`VLC lua README`: http://git.videolan.org/?p=vlc.git;a=blob_plain;f=share/lua/README.txt
