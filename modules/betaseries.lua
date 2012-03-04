@@ -26,7 +26,7 @@ require "modules.simplexml"
 shows = {}
 members = {}
 
-local key = "81452e2dc55d" -- Please don't steal ;-)
+local key = "5b8a94c91877" -- Please don't steal ;-)
 local api_key = ".xml?key="..key.."&"
 
 local tag = "[betaseries-module]: "
