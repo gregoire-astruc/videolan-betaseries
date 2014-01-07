@@ -27,7 +27,8 @@ shows = {}
 members = {}
 
 local key = "5b8a94c91877" -- Please don't steal ;-)
-local api_key = ".xml?key="..key.."&"
+local version = "2.2"
+local api_key = ".xml?key="..key.."&v="..version.."&"
 
 local tag = "[betaseries-module]: "
 
@@ -106,7 +107,7 @@ function shows:display()
         if node.name == "title" then
             self.title = trim(node.children[1])
             
-        elseif node.name == "id_thetvdb" then
+        elseif node.name == "thetvdb_id" then
             self.tvdb = trim(node.children[1])
             
         elseif node.name == "url" then
