@@ -34,7 +34,7 @@ local tag = "[betaseries-module]: "
 
 -- API URLs.
 local api = {
-            base    = "http://api.betaseries.com/",
+            base    = "https://api.betaseries.com/",
             -- Sections
             shows = {
                 search      = "shows/search"..api_key,
