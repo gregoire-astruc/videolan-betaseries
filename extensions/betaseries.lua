@@ -24,6 +24,7 @@
 -- Lua modules
 require "betaseries"
 require "set"
+local md5 = require("md5")
 
 local dlg       = nil   -- Account Dialog
 local user      = nil   -- Text input widget
@@ -34,7 +35,7 @@ local token     = nil   -- BetaSeries token.
 local markers   = nil   -- Playlist item names to mark 'show' as watched.
 
 local menus = { "Mon Compte..." }
-local tag   = "[betaseries-extension]: " 
+local tag   = "[betaseries-extension]: "
 
 -- Extension description
 function descriptor()
@@ -66,7 +67,7 @@ local function parse_input()
         vlc.msg.warn(tag .. "No Token set.")
         return
     end
-    
+
     if not vlc.input.is_playing() then
         return
     end
@@ -79,19 +80,19 @@ local function parse_input()
         vlc.msg.warn(tag .. "No betaseries/url.")
         return
     end
-    
+
     local season = metas["betaseries/season"]
     if not season then
         vlc.msg.warn(tag .. "No betaseries/season.")
         return
     end
-    
+
     local episode = metas["betaseries/episode"]
     if not episode then
         vlc.msg.warn(tag .. "No betaseries/episode.")
         return
     end
-    
+
     local title = metas["betaseries/title"]
     if not title then
         vlc.msg.warn(tag .. "No betaseries/title.")
@@ -102,7 +103,7 @@ local function parse_input()
         vlc.msg.warn(tag .. "Already in the playlist!")
         return
     end
-    
+
     if showUrl and season and episode and title then
         vlc.msg.warn(tag .. "showUrl, season and episode found :)")
         local url = token:watchedurl(showUrl, season, episode)
@@ -130,16 +131,16 @@ end
 
 local function save_config(username, password)
     -- Save login/password to VLC's user config directory.
-    vlc.msg.dbg(tag .. "Config dir: " .. vlc.misc.configdir())
-    
-    configfile, errmsg = io.open(vlc.misc.configdir() .. "/.betaseries", "w")
-    
+    vlc.msg.dbg(tag .. "Config dir: " .. vlc.config.configdir())
+
+    configfile, errmsg = io.open(vlc.config.configdir() .. "/.betaseries", "w")
+
     if not configfile then
         vlc.msg.warn(tag .. "Error opening .betaseries for writing: " .. errmsg)
         return
     end
 
-    -- Password is saved in its md5 form, but it's not any safer :) 
+    -- Password is saved in its md5 form, but it's not any safer :)
     configfile:write(username .. "\n" .. password)
     configfile:close()
 end
@@ -165,7 +166,7 @@ local function click_login()
         vlc.msg.dbg(tag .. "Missing username.")
         return
     end
-    
+
     if not password or password == "" then
         vlc.msg.dbg(tag .. "Missing password.")
         return
@@ -173,10 +174,10 @@ local function click_login()
 
     -- Please wait...
     show_message("Identification sur Betaseries...")
-    
-    if check_user(username, vlc.md5(password)) then
+
+    if check_user(username, md5.sumhexa(password)) then
         -- Username/password combination is correct: save them to a file.
-        save_config(username, vlc.md5(password))
+        save_config(username, md5.sumhexa(password))
         show_message("Identification reussie.")
         dlg:hide()
         -- See if something is playing and parse it if we can.
@@ -204,7 +205,7 @@ local function show_settings(message_text)
     else
         dlg:show()
     end
-    
+
     if message_text then
         show_message(message_text)
     end
@@ -218,8 +219,8 @@ end
 function activate()
     markers = set.new()
     vlc.msg.dbg(tag .. "starting up.")
-    configfilename = vlc.misc.configdir() .. "/.betaseries"
-    
+    configfilename = vlc.config.configdir() .. "/.betaseries"
+
     --[[ First, we look for an existing configfile.
             If it exists, we attempt to load it.
             Otherwise we immediately prompt the account dialog.
@@ -234,10 +235,10 @@ function activate()
                 pass = line
             end
         end
-        
+
         configfile:close()
     end
-    
+
     local msg = nil
     if user ~= nil and pass ~= nil then
         -- Config ok: Try to get a token.
@@ -271,7 +272,7 @@ function deactivate()
     if dlg then
         dlg:delete()
     end
-    
+
     if token then
         token:destroy()
     end

@@ -20,7 +20,7 @@
 --]]
 module("betaseries",package.seeall)
 
-require "modules.simplexml"
+require "simplexml"
 
 -- Interface
 shows = {}
