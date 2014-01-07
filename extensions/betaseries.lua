@@ -39,7 +39,7 @@ local tag   = "[betaseries-extension]: "
 -- Extension description
 function descriptor()
     return { title          = "Betaseries" ;
-             version        = "2010.11" ;
+             version        = "2014.01" ;
              author         = "Gregoire Astruc" ;
              url            = 'http://www.betaseries.com/';
              shortdesc      = "Betaseries - Le site de vos series.";
