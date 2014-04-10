@@ -18,7 +18,7 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
 --]]
-require "modules.betaseries"
+--require "betaseries"
 
 local tag = "[betaseries-fetcher]: "
 
@@ -27,9 +27,9 @@ local tag = "[betaseries-fetcher]: "
      All tags are added under betaseries/*.
 ]]--
 function fetch_meta()
-    local metas = vlc.item:metas()
+    local metas = vlc.input.item():metas()
     
-    local show = metas["showName"]  
+    local show = metas["showName"]
     local episode = metas["episodeNumber"]
     local season = metas["seasonNumber"]
     
@@ -57,8 +57,8 @@ function fetch_meta()
     
     -- Look for an exact title match.
     -- If none, we acknownledge we failed.
-    local showUrl   = nil
-    local showTitle = nil
+    local showUrl
+    local showTitle
     
     if #shows == 1 then
         -- Only one show returned : assume it's the correct one.
@@ -81,9 +81,9 @@ function fetch_meta()
     end
 
     vlc.msg.warn(tag.."Adding meta data.")
-    vlc.item:set_meta("betaseries/url", showUrl)
-    vlc.item:set_meta("betaseries/title", showTitle)
-    vlc.item:set_meta("betaseries/episode", episode)
-    vlc.item:set_meta("betaseries/season", season)
+    vlc.input.item():set_meta("betaseries/url", showUrl)
+    vlc.input.item():set_meta("betaseries/title", showTitle)
+    vlc.input.item():set_meta("betaseries/episode", episode)
+    vlc.input.item():set_meta("betaseries/season", season)
     return true
 end

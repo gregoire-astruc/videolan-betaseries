@@ -22,17 +22,18 @@
 --]]
 
 -- Lua modules
-require "betaseries"
+require "meta.fetcher.betaseriesfetcher"
+require "betaseriesmodule"
 require "set"
-local md5 = require("md5")
+local md5 = require "md5"
 
-local dlg       = nil   -- Account Dialog
-local user      = nil   -- Text input widget
-local pass      = nil   -- Password input widget
-local message   = nil   -- Label
-local configfilename = nil
-local token     = nil   -- BetaSeries token.
-local markers   = nil   -- Playlist item names to mark 'show' as watched.
+local dlg          -- Account Dialog
+local user         -- Text input widget
+local pass         -- Password input widget
+local message      -- Label
+local configfilename
+local token        -- BetaSeries token.
+local markers      -- Playlist item names to mark 'show' as watched.
 
 local menus = { "Mon Compte..." }
 local tag   = "[betaseries-extension]: "
@@ -48,7 +49,8 @@ function descriptor()
                         .. "<p>"
                         .. "Marque votre &eacutepisode comme <em>vu</em> lorsque celui-ci se termine."
                         .. "</p>" ;
-             capabilities   = { "menu", "meta-listener", "input-listener" } }
+             capabilities   = { "menu", "meta-listener", "input-listener" }
+    }
 end
 
 --
@@ -73,7 +75,8 @@ local function parse_input()
     end
 
     -- Little coffee break.
-    vlc.misc.mwait(500 * 1000)
+    -- vlc.misc.mwait(500 * 1000)
+    fetch_meta()
     local metas = vlc.input.item():metas()
     local showUrl = metas["betaseries/url"]
     if not showUrl then
@@ -104,7 +107,7 @@ local function parse_input()
         return
     end
 
-    if showUrl and season and episode and title then
+    if showUrl and season and episode then
         vlc.msg.warn(tag .. "showUrl, season and episode found :)")
         local url = token:watchedurl(showUrl, season, episode)
         -- Add an item playlist to mark the show as read once seen :)
@@ -133,7 +136,7 @@ local function save_config(username, password)
     -- Save login/password to VLC's user config directory.
     vlc.msg.dbg(tag .. "Config dir: " .. vlc.config.configdir())
 
-    configfile, errmsg = io.open(vlc.config.configdir() .. "/.betaseries", "w")
+    local configfile, errmsg = io.open(vlc.config.configdir() .. "/.betaseries", "w")
 
     if not configfile then
         vlc.msg.warn(tag .. "Error opening .betaseries for writing: " .. errmsg)
@@ -225,7 +228,7 @@ function activate()
             If it exists, we attempt to load it.
             Otherwise we immediately prompt the account dialog.
     --]]
-    configfile = io.open(configfilename)
+    local configfile = io.open(configfilename)
     if configfile then
         for line in configfile:lines() do
             -- Could probably do nicer, but I don't know lua :(
@@ -239,7 +242,7 @@ function activate()
         configfile:close()
     end
 
-    local msg = nil
+    local msg
     if user ~= nil and pass ~= nil then
         -- Config ok: Try to get a token.
         if check_user(user, pass) then
@@ -288,4 +291,8 @@ end
 function meta_changed()
     vlc.msg.warn(tag .. "Meta Changed !")
     parse_input()
+end
+
+function close()
+    vlc.msg.warn(tag .. "Closed !")
 end
