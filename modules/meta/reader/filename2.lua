@@ -37,8 +37,7 @@ function read_meta()
     end
 
     -- Find "Show Name - 1x12 - blah.avi"
-    local title, seasonNumber
-    _, _, showName, seasonNumber, episodeNumber = string.find(name, "(.+)%s%-%s(%d)x(%d%d).*")
+    local _, _, showName, seasonNumber, episodeNumber = string.find(name, "(.+)%s%-%s(%d)x(%d%d).*")
     if not showName then
         return
     end

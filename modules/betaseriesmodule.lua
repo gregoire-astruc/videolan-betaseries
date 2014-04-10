@@ -47,14 +47,14 @@ local api = {
                 watched = "members/watched/",
                 signup  = "members/signup"..api_key
             }
-        }           
+        }
 
 -- Helper function: loads and fetch the given url.
 local function load(url)
     local fd, errmsg = vlc.stream(api.base .. url)
     if not fd then return nil, errmsg end
     local page = fd:read(65653)
-    fd = nil
+    -- fd = nil
 
     return page
 end
@@ -73,13 +73,13 @@ function shows.search(title)
     vlc.msg.warn(tag.."Searching '"..title.."'")
     local page, errmsg = load(api.shows.search .."title="..title)
     if not page then return nil, errmsg end
-    
+
     local showsTable = {}
-    
+
     for showUrl, showTitle in page:gmatch("<url>(.-)</url>.-<title>(.-)</title>") do
         table.insert(showsTable, {shows, url = showUrl, title = trim(showTitle)})
     end
-    
+
     vlc.msg.warn(tag..#showsTable.." results for '"..title.."'")
 
     if  #showsTable == 0 then
@@ -101,7 +101,7 @@ function shows:display()
     local page, errmsg = load(api.shows.display .. self.url .. api_key)
     if not page then return nil, errmsg end
     
-    showInfo = simplexml.parse_string(page)
+    local showInfo = simplexml.parse_string(page)
     
     for _, node in ipairs(showInfo.children) do
         if node.name == "title" then
@@ -192,7 +192,7 @@ end
 -- Members section.
 
 function members.signup(login, password, mail)
-    page, errmsg = load(api.members.signup.."login="..login.."&password="..password.."&mail="..mail)
+    local page, errmsg = load(api.members.signup.."login="..login.."&password="..password.."&mail="..mail)
     if not page then return false, errmsg end
 end
 -- Authentification.
@@ -212,9 +212,9 @@ function members.auth(username, password)
     end
     
     -- Find user token.
-    _, _, token = data:find("<token>(.-)</token>")
+    local _, _, token = data:find("<token>(.-)</token>")
     if not token then
-        _, _, errorcode, errormsg = data:find("<error code=\"(%d-)\">(.+)</error>")
+        local _, _, errorcode, errormsg = data:find("<error code=\"(%d-)\">(.+)</error>")
         if not errormsg then
             vlc.msg.warn(tag .. "Unexpected error at logging.")
             return nil, "Unexpected error", -2
@@ -263,5 +263,5 @@ function members:watched(showUrl, season, episode, note)
     else
         vlc.msg.dbg(tag .. "members.watched: " .. page)
         return true
-    end 
+    end
 end
