@@ -17,7 +17,13 @@
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
+
+ Inspired from https://github.com/videolan/vlc/blob/9ad76e4f4542b0ff4d20fc6dc0d395112da554b0/share/lua/meta/reader/filename.lua
 --]]
+
+function descriptor()
+    return { scope="local" }
+end
 
 function trim (s)
   return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
@@ -37,7 +43,8 @@ function read_meta()
     end
 
     -- Find "Show Name - 1x12 - blah.avi"
-    local _, _, showName, seasonNumber, episodeNumber = string.find(name, "(.+)%s%-%s(%d)x(%d%d).*")
+    local title, seasonNumber
+    _, _, showName, seasonNumber, episodeNumber = string.find(name, "(.+)%s%-%s(%d+)x(%d+).*")
     if not showName then
         return
     end

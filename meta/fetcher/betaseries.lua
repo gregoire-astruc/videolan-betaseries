@@ -26,40 +26,45 @@ local tag = "[betaseries-fetcher]: "
      Use the betaseries module to fetch meta tag from betaseries.com
      All tags are added under betaseries/*.
 ]]--
+
+function descriptor()
+    return { scope="local" }
+end
+
 function fetch_meta()
     local metas = vlc.input.item():metas()
-    
+
     local show = metas["showName"]
     local episode = metas["episodeNumber"]
     local season = metas["seasonNumber"]
-    
+
     if not show then
         vlc.msg.warn(tag.."No showName, aborting.")
         return false
     end
-    
+
     if not episode then
         vlc.msg.warn(tag.."No episodeNumber, aborting.")
         return false
     end
-    
+
     if not season then
         vlc.msg.warn(tag.."No seasonNumber, aborting.")
         return false
     end
-    
+
     local shows, errmsg = betaseries.shows.search(show)
-    
+
     if not shows then
         vlc.msg.warn(tag .. errmsg)
         return false
     end
-    
+
     -- Look for an exact title match.
     -- If none, we acknownledge we failed.
     local showUrl
     local showTitle
-    
+
     if #shows == 1 then
         -- Only one show returned : assume it's the correct one.
         showUrl = shows[1].url
@@ -74,7 +79,7 @@ function fetch_meta()
             end
         end
     end
-        
+
     if not showUrl then
         vlc.msg.warn(tag.."No information for "..show)
         return false
