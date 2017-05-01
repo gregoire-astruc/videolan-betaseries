@@ -22,37 +22,38 @@
 --]]
 
 function descriptor()
-    return { scope="local" }
+  return { scope='local' }
 end
 
-function trim (s)
-  return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
+function trim(s)
+  return (string.gsub(s, '^%s*(.-)%s*$', '%1'))
 end
 
 function read_meta()
-    local metas = vlc.item:metas()
+  local metas = vlc.item:metas()
 
-    -- Don't do anything if there is already a title
-    if metas["title"] then
-        return
-    end
+  -- Don't do anything if there is already a title
+  if metas['title'] then
+    return
+  end
 
-    local name = metas["filename"];
-    if not name then
-        return
-    end
+  local name = metas['filename'];
+  if not name then
+    return
+  end
 
-    -- Find "Show Name - 1x12 - blah.avi"
-    local title, seasonNumber
-    _, _, showName, seasonNumber, episodeNumber = string.find(name, "(.+)%s%-%s(%d+)x(%d+).*")
-    if not showName then
-        return
-    end
+  -- Find "Show Name - 1x12 - blah.avi"
+  local title, seasonNumber
+  _, _, showName, seasonNumber, episodeNumber = string.find(name, '(.+)%s%-%s(%d+)x(%d+).*')
 
-    -- Remove . in showName
-    showName = trim(string.gsub(showName, "%.", " "))
-    vlc.item:set_meta("title", showName.." S"..seasonNumber.."E"..episodeNumber)
-    vlc.item:set_meta("showName", showName)
-    vlc.item:set_meta("episodeNumber", episodeNumber)
-    vlc.item:set_meta("seasonNumber", seasonNumber)
+  if not showName then
+    return
+  end
+
+  -- Remove . in showName
+  showName = trim(string.gsub(showName, '%.', ' '))
+  vlc.item:set_meta('title', showName .. ' S' .. seasonNumber .. 'E' .. episodeNumber)
+  vlc.item:set_meta('showName', showName)
+  vlc.item:set_meta('episodeNumber', episodeNumber)
+  vlc.item:set_meta('seasonNumber', seasonNumber)
 end
