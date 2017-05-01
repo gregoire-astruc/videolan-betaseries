@@ -58,4 +58,4 @@ Autres
 .. _`Download link`: https://github.com/gregoire-astruc/videolan-betaseries/downloads
 .. _`Linux Install Script`: https://github.com/downloads/gregoire-astruc/videolan-betaseries/install-videolan-betaseries.sh
 .. _`Windows Installer`: https://github.com/downloads/gregoire-astruc/videolan-betaseries/videolan-betaseries-installer.exe
-.. _`VLC lua README`: http://git.videolan.org/?p=vlc.git;a=blob_plain;f=share/lua/README.txt
+.. _`VLC lua README`: https://github.com/videolan/vlc/blob/master/share/lua/README.txt
