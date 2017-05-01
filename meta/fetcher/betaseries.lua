@@ -17,10 +17,11 @@
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
---]]
---require "betaseries"
 
-local tag = "[betaseries-fetcher]: "
+ Inspired from https://github.com/videolan/vlc/blob/5f24d114aa3a7d491536bc58cb064cd4e2d875d3/share/lua/meta/fetcher/tvrage.lua
+--]]
+
+local tag = '[BetaSeries-Fetcher] '
 
 --[[ Fetch betaseries specific metas.
      Use the betaseries module to fetch meta tag from betaseries.com
@@ -28,67 +29,89 @@ local tag = "[betaseries-fetcher]: "
 ]]--
 
 function descriptor()
-    return { scope="local" }
+  return { scope='network' }
+end
+
+-- Replace non alphanumeric char by +
+function get_query(title)
+  -- If we have a .EXT remove the extension.
+  str = string.gsub(title, '(.*)%....$', '%1')
+  return string.gsub(str, '([^%w ])', function (c) return string.format('%%%02X', string.byte(c)) end)
 end
 
 function fetch_meta()
-    local metas = vlc.input.item():metas()
+  local metas = vlc.item:metas()
 
-    local show = metas["showName"]
-    local episode = metas["episodeNumber"]
-    local season = metas["seasonNumber"]
+  local showName = metas['showName']
+  if not showName then
+    return false
+  end
 
-    if not show then
-        vlc.msg.warn(tag.."No showName, aborting.")
-        return false
+  -- Find "[Source tag] Show Name"
+  _, _, showName = string.find(showName, '^%[[^%]]-%]%s(.*)')
+  showName = showName or metas['showName']
+
+  local episodeNumber = metas['episodeNumber']
+  if not episodeNumber then
+    return false
+  end
+
+  local seasonNumber = metas['seasonNumber']
+  if not seasonNumber then
+    return false
+  end
+
+  local fd = vlc.stream('http://api.betaseries.com/shows/search?key=5b8a94c91877&title=' .. get_query(showName))
+  if not fd then return nil end
+  local page = fd:read(65653)
+  fd = nil
+
+  if not page then
+    return false
+  end
+
+  local shows = {}
+
+  -- for showTitle, showArtwork, showUrl in page:gmatch('"title":"(.-)".-"poster":"(.-)".-"resource_url":"(.-)"') do
+  --   table.insert(shows, { url = showUrl, title = showTitle, artwork = string.gsub(showArtwork, '\\', '') })
+  -- end
+
+  for showTitle, showUrl in page:gmatch('"title":"(.-)".-"resource_url":"(.-)"') do
+    table.insert(shows, { url = showUrl, title = showTitle })
+  end
+
+  -- Look for an exact title match.
+  -- If none, we acknownledge we failed.
+  local showUrl
+  local showTitle
+  -- local showArtwork
+
+  if #shows == 1 then
+    -- Only one show returned : assume it's the correct one.
+    showUrl = shows[1].url
+    showTitle = shows[1].title
+    -- showArtwork = shows[1].artwork
+  else
+    -- Multiple show : we look for an exact match.
+    for _, showInfo in ipairs(shows) do
+      if string.lower(showName) == string.lower(showInfo.title) then
+        showUrl = showInfo.url
+        showTitle = showInfo.title
+        -- showArtwork = showInfo.artwork
+        break
+      end
     end
+  end
 
-    if not episode then
-        vlc.msg.warn(tag.."No episodeNumber, aborting.")
-        return false
-    end
+  if not showUrl then
+    return false
+  end
 
-    if not season then
-        vlc.msg.warn(tag.."No seasonNumber, aborting.")
-        return false
-    end
+  -- vlc.item:set_meta('artwork_url', showArtwork)
+  vlc.item:set_meta('betaseries/url', showUrl)
+  vlc.item:set_meta('betaseries/title', showTitle)
+  vlc.item:set_meta('betaseries/episode', episodeNumber)
+  vlc.item:set_meta('betaseries/season', seasonNumber)
 
-    local shows, errmsg = betaseries.shows.search(show)
-
-    if not shows then
-        vlc.msg.warn(tag .. errmsg)
-        return false
-    end
-
-    -- Look for an exact title match.
-    -- If none, we acknownledge we failed.
-    local showUrl
-    local showTitle
-
-    if #shows == 1 then
-        -- Only one show returned : assume it's the correct one.
-        showUrl = shows[1].url
-        showTitle = shows[1].title
-    else
-        -- Multiple show : we look for an exact match.
-        for _, showInfo in ipairs(shows) do
-            if string.lower(show) == string.lower(showInfo.title) then
-                showUrl     = showInfo.url
-                showTitle   = showInfo.title
-                break
-            end
-        end
-    end
-
-    if not showUrl then
-        vlc.msg.warn(tag.."No information for "..show)
-        return false
-    end
-
-    vlc.msg.warn(tag.."Adding meta data.")
-    vlc.input.item():set_meta("betaseries/url", showUrl)
-    vlc.input.item():set_meta("betaseries/title", showTitle)
-    vlc.input.item():set_meta("betaseries/episode", episode)
-    vlc.input.item():set_meta("betaseries/season", season)
-    return true
+  return true
 end
