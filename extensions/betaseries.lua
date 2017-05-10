@@ -21,278 +21,273 @@
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
 --]]
 
--- Lua modules
-require "meta.fetcher.betaseriesfetcher"
-require "betaseriesmodule"
-require "set"
-local md5 = require "md5"
+require 'betaseries.api'
+require 'betaseries.set'
 
-local dlg          -- Account Dialog
-local user         -- Text input widget
-local pass         -- Password input widget
-local message      -- Label
-local configfilename
-local token        -- BetaSeries token.
-local markers      -- Playlist item names to mark 'show' as watched.
+local md5 = require 'betaseries.md5'
+local json = require 'dkjson'
 
-local menus = { "Mon Compte..." }
-local tag   = "[betaseries-extension]: "
+local tag = '[BetaSeries-Extension] '
+local dlg = nil
+local widget = {}
+local user = nil
+local userdata = {
+  username = nil,
+  password = nil
+}
+local markers = nil
 
--- Extension description
+-- ******************************
+-- *                            *
+-- *  VLC extension functions   *
+-- *                            *
+-- ******************************
+
+-- VLC specific. Used to describe the extension
 function descriptor()
-    return { title          = "Betaseries" ;
-             version        = "2014.01" ;
-             author         = "Gregoire Astruc" ;
-             url            = 'http://www.betaseries.com/';
-             shortdesc      = "Betaseries - Le site de vos series.";
-             description    = "<center><strong>betaseries.com</strong></center>"
-                        .. "<p>"
-                        .. "Marque votre &eacutepisode comme <em>vu</em> lorsque celui-ci se termine."
-                        .. "</p>" ;
-             capabilities   = { "menu", "meta-listener", "input-listener" }
-    }
+  return {
+    title          = 'BetaSeries';
+    version        = '2017.04';
+    author         = 'Gregoire Astruc';
+    url            = 'http://www.betaseries.com/';
+    shortdesc      = 'Betaseries - Le site de vos series.';
+    description    = '<center><strong>betaseries.com</strong></center>'
+              .. '<p>'
+              .. 'Marque votre &eacutepisode comme <em>vu</em> lorsque celui-ci se termine.'
+              .. '</p>' ;
+    capabilities   = { 'menu', 'meta-listener', 'input-listener' }
+  }
 end
 
---
--- VLC Interface at the end.
---
-
-
----------------------
--- Local functions --
----------------------
-
--- Parse the input, see if we can add the 'hook' on the playlist.
-local function parse_input()
-    vlc.msg.warn(tag .. "Parsing input.")
-    if not token then
-        vlc.msg.warn(tag .. "No Token set.")
-        return
-    end
-
-    if not vlc.input.is_playing() then
-        return
-    end
-
-    -- Little coffee break.
-    -- vlc.misc.mwait(500 * 1000)
-    fetch_meta()
-    local metas = vlc.input.item():metas()
-    local showUrl = metas["betaseries/url"]
-    if not showUrl then
-        vlc.msg.warn(tag .. "No betaseries/url.")
-        return
-    end
-
-    local season = metas["betaseries/season"]
-    if not season then
-        vlc.msg.warn(tag .. "No betaseries/season.")
-        return
-    end
-
-    local episode = metas["betaseries/episode"]
-    if not episode then
-        vlc.msg.warn(tag .. "No betaseries/episode.")
-        return
-    end
-
-    local title = metas["betaseries/title"]
-    if not title then
-        vlc.msg.warn(tag .. "No betaseries/title.")
-        return
-    end
-
-    if markers:contains(title) then
-        vlc.msg.warn(tag .. "Already in the playlist!")
-        return
-    end
-
-    if showUrl and season and episode then
-        vlc.msg.warn(tag .. "showUrl, season and episode found :)")
-        local url = token:watchedurl(showUrl, season, episode)
-        -- Add an item playlist to mark the show as read once seen :)
-        local mark = {
-                    path = url,
-                    name = "[BetaSeries] " .. "- Watched " .. title
-                }
-        vlc.msg.dbg(tag .. mark.path)
-        vlc.msg.warn(tag .. "search name: " .. table.concat(vlc.playlist.search(mark.name)))
-        vlc.msg.warn(tag .. "search path: " .. table.concat(vlc.playlist.search(mark.path)))
-        vlc.playlist.enqueue({mark})
-        markers:insert(title)
-    end
-end
--- Display a message.
-local function show_message(message_text)
-    if not message then
-        message = dlg:add_label(message_text, 2, 3, 1, 1)
-    else
-        message:set_text(message_text)
-    end
-    dlg:update()
-end
-
-local function save_config(username, password)
-    -- Save login/password to VLC's user config directory.
-    vlc.msg.dbg(tag .. "Config dir: " .. vlc.config.configdir())
-
-    local configfile, errmsg = io.open(vlc.config.configdir() .. "/.betaseries", "w")
-
-    if not configfile then
-        vlc.msg.warn(tag .. "Error opening .betaseries for writing: " .. errmsg)
-        return
-    end
-
-    -- Password is saved in its md5 form, but it's not any safer :)
-    configfile:write(username .. "\n" .. password)
-    configfile:close()
-end
-
-local function check_user(username, password)
-    -- Destroy previous token (if any)
-    if token then
-        token:destroy()
-        token = nil
-    end
-
-    token = betaseries.members.auth(username, password)
-
-    return token ~= nil
-end
-
--- Login the user.
-local function click_login()
-    -- Get username
-    local username = user:get_text()
-    local password = pass:get_text()
-    if not username or username == "" then
-        vlc.msg.dbg(tag .. "Missing username.")
-        return
-    end
-
-    if not password or password == "" then
-        vlc.msg.dbg(tag .. "Missing password.")
-        return
-    end
-
-    -- Please wait...
-    show_message("Identification sur Betaseries...")
-
-    if check_user(username, md5.sumhexa(password)) then
-        -- Username/password combination is correct: save them to a file.
-        save_config(username, md5.sumhexa(password))
-        show_message("Identification reussie.")
-        dlg:hide()
-        -- See if something is playing and parse it if we can.
-        if vlc.input.is_playing() then
-            parse_input()
-        end
-    else
-        show_message("L'identification a echoue : mot de passe ou nom d'utilisateur incorrect.")
-    end
-end
-
--- Create the dialog
-local function create_dialog()
-    dlg = vlc.dialog("Mon Compte BetaSeries.com")
-    dlg:add_label("<strong>Pseudo : </strong>", 1, 1, 1, 1)
-    user = dlg:add_text_input("", 2, 1, 1, 1)
-    dlg:add_label("<strong>Mot de passe : </strong>", 1, 2, 1, 1)
-    pass = dlg:add_password("", 2, 2, 1, 1)
-    dlg:add_button("Login", click_login, 1, 3, 1, 1)
-end
-
-local function show_settings(message_text)
-    if not dlg then
-        create_dialog()
-    else
-        dlg:show()
-    end
-
-    if message_text then
-        show_message(message_text)
-    end
-end
-
--------------------------
--- _! VLC Interface !_ --
--------------------------
-
--- Activation hook
+-- VLC specific. Called on extension startup
 function activate()
-    markers = set.new()
-    vlc.msg.dbg(tag .. "starting up.")
-    configfilename = vlc.config.configdir() .. "/.betaseries"
+  vlc.msg.dbg(tag .. 'Welcome')
 
-    --[[ First, we look for an existing configfile.
-            If it exists, we attempt to load it.
-            Otherwise we immediately prompt the account dialog.
-    --]]
-    local configfile = io.open(configfilename)
-    if configfile then
-        for line in configfile:lines() do
-            -- Could probably do nicer, but I don't know lua :(
-            if not user then
-                user = line
-            else
-                pass = line
-            end
-        end
+  markers = set.new()
 
-        configfile:close()
+  local f = io.open(vlc.config.configdir() .. '/.betaseries', 'r')
+
+  if f then
+    local raw_json_text = ''
+    for line in f:lines() do
+      raw_json_text = raw_json_text .. line
     end
+    f:close()
 
-    local msg
-    if user ~= nil and pass ~= nil then
-        -- Config ok: Try to get a token.
-        if check_user(user, pass) then
-            -- Token OK ! Let's see is something is playing and we can get its info.
-            if vlc.input.is_playing() then
-                parse_input()
-            end
-            return
-        else
-            msg = 'Username and password mismatch.'
-        end
+    obj, pos, err = json.decode(raw_json_text, 1, nil)
+
+    if err then
+      vlc.msg.warn(tag .. 'Error decoding .betaseries for reading: ' .. err)
+    else
+      userdata = obj
     end
-    -- No user or pass set, or token was nil: show the settings dialog.
-    show_settings(msg)
+  end
+
+  if userdata.username ~= nil and userdata.password ~= nil then
+    user = betaseries.members.auth(userdata.username, userdata.password)
+
+    trigger_menu(1)
+
+    if user ~= nil then
+      if vlc.input.is_playing() then
+        parse_input()
+      end
+    else
+      update_login_dialog('Nom d\'utilisateur ou mot de passe incorrect.')
+    end
+  else
+    trigger_menu(1)
+  end
 end
 
-function menu()
-    return menus
-end
-
-function trigger_menu(id)
-    if id == 1 then
-        show_settings()
-    end
-end
-
--- Deactivation hook
+-- VLC specific. Called on extension deactivation
 function deactivate()
-    vlc.msg.warn(tag .. "shutting down.")
-    if dlg then
-        dlg:delete()
-    end
+  vlc.msg.dbg(tag .. 'Bye bye!')
 
-    if token then
-        token:destroy()
-    end
+  close_dlg()
+
+  if user then
+    user:destroy()
+  end
 end
 
--- Input change hook
-function input_changed()
-    vlc.msg.dbg(tag .. "Input Changed !")
-    parse_input()
-end
-
--- Meta change hook
-function meta_changed()
-    vlc.msg.warn(tag .. "Meta Changed !")
-    parse_input()
-end
-
+-- VLC specific. Called when the extension is closed
 function close()
-    vlc.msg.warn(tag .. "Closed !")
+  close_dlg()
+end
+
+-- VLC specific. TOOD add description
+function menu()
+  return { 'Mon Compte...' }
+end
+
+-- VLC specific. TOOD add description
+function input_changed()
+  parse_input()
+end
+
+-- VLC specific. TOOD add description
+function meta_changed()
+  parse_input()
+end
+
+function parse_input()
+  if not user then
+    return
+  end
+
+  if not vlc.input.is_playing() then
+    return
+  end
+
+  local metas = vlc.input.item():metas()
+
+  local showUrl = metas['betaseries/url']
+  if not showUrl then
+    return
+  end
+
+  local season = metas['betaseries/season']
+  if not season then
+    return
+  end
+
+  local episode = metas['betaseries/episode']
+  if not episode then
+    return
+  end
+
+  local title = metas['betaseries/title']
+  if not title then
+    return
+  end
+
+  if markers:contains(title) then
+    return
+  end
+
+  if showUrl and season and episode then
+    local url = user:watchedurl(showUrl, season, episode)
+    -- Add an item playlist to mark the show as read once seen :)
+    local mark = { path = url, name = '[BetaSeries] Watched - ' .. title }
+    vlc.playlist.enqueue({ mark })
+    markers:insert(title)
+  end
+end
+
+-- ******************************
+-- *                            *
+-- *  UI dialog functions       *
+-- *                            *
+-- ******************************
+
+function create_login_dialog()
+  dlg:hide()
+
+  widget['login_username_label'] = dlg:add_label('<strong>Pseudo : </strong>', 1, 1, 1, 1)
+  widget['login_username_imput'] = dlg:add_text_input('', 2, 1, 1, 1)
+
+  widget['login_password_label'] = dlg:add_label('<strong>Mot de passe : </strong>', 1, 2, 1, 1)
+  widget['login_password_input'] = dlg:add_text_input('', 2, 2, 1, 1)
+
+  widget['login_button'] = dlg:add_button('Se connecter', login_action, 2, 3, 1, 1)
+
+  dlg:show()
+end
+
+function update_login_dialog(message)
+  if not widget['login_error'] then
+    widget['login_error'] = dlg:add_label(message, 1, 4, 2, 1)
+  else
+    widget['login_error']:set_text(message)
+  end
+
+  dlg:update()
+end
+
+function create_dashboard_dialog()
+  dlg:hide()
+
+  widget['logout_username_label'] = dlg:add_label('<strong>Pseudo : </strong>', 1, 1, 1, 1)
+  widget['logout_username_imput'] = dlg:add_label(userdata.username, 2, 1, 1, 1)
+
+  widget['logout_button'] = dlg:add_button('Se déconnecter', logout_action, 2, 2, 1, 1)
+
+  dlg:show()
+end
+
+function close_dlg()
+  if dlg then
+    dlg:delete()
+  end
+
+  dlg = nil
+  widget = nil
+  widget = {}
+end
+
+-- VLC specific. Used to control which dialog is displayed
+function trigger_menu(dlg_id)
+  if dlg_id == 1 then
+    close_dlg()
+    dlg = vlc.dialog('Mon Compte BetaSeries')
+
+    if user then
+      create_dashboard_dialog()
+    else
+      create_login_dialog()
+    end
+  end
+end
+
+function login_action()
+  local username = widget['login_username_imput']:get_text()
+  local password = widget['login_password_input']:get_text()
+
+  if not username or username == '' then
+    return
+  end
+
+  if not password or password == '' then
+    return
+  end
+
+  update_login_dialog('Connexion a Betaseries...')
+
+  user = betaseries.members.auth(username, md5.sumhexa(password))
+
+  if user ~= nil then
+    local f, errmsg = io.open(vlc.config.configdir() .. '/.betaseries', 'w')
+
+    if not f then
+      vlc.msg.warn(tag .. 'Error opening .betaseries for writing: ' .. errmsg)
+      return
+    end
+
+    userdata.username = username
+    userdata.password = md5.sumhexa(password)
+
+    f:write(json.encode(userdata, { indent = true }))
+    f:close()
+
+    update_login_dialog('Connexion reussie.')
+    trigger_menu(1)
+
+    if vlc.input.is_playing() then
+      parse_input()
+    end
+  else
+    update_login_dialog('Nom d\'utilisateur ou mot de passe incorrect.')
+  end
+end
+
+function logout_action()
+  if user then
+    user:destroy()
+    user = nil
+  end
+
+  os.remove(vlc.config.configdir() .. '/.betaseries')
+
+  trigger_menu(1)
 end
